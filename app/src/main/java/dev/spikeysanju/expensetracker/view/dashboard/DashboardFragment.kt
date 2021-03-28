@@ -1,6 +1,7 @@
 package dev.spikeysanju.expensetracker.view.dashboard
 
 import android.os.Bundle
+import android.util.Log
 import android.view.*
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -25,8 +26,7 @@ import dev.spikeysanju.expensetracker.view.base.BaseFragment
 import dev.spikeysanju.expensetracker.view.main.viewmodel.TransactionViewModel
 import hide
 import indianRupee
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.*
 import show
 import kotlin.math.abs
 
@@ -43,6 +43,7 @@ class DashboardFragment :
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        viewModel.saveAuthStatusToDataStore(false)
         setupRV()
         initViews()
         observeFilter()
@@ -147,10 +148,29 @@ class DashboardFragment :
     }
 
     private fun observeTransaction() = lifecycleScope.launchWhenStarted {
-        viewModel.uiState.collect { uiState ->
-            when (uiState) {
-                is ViewState.Loading -> {
+        viewModel.getAuthStatus.combine(viewModel.uiState) {
+                authStatus, uiState ->
+            Log.d("d--mua", "$authStatus $uiState")
+            if(uiState is ViewState.Success && authStatus){
+                uiState
+            }else{
+                when(uiState){
+                    is ViewState.Loading -> {
+                        uiState
+                    }
+                    is ViewState.Success -> { }
+                    is ViewState.Error -> {
+                        uiState
+                    }
+                    is ViewState.Empty -> {
+                        uiState
+                    }
                 }
+            }
+        }.collect {
+            uiState ->
+            when (uiState) {
+                is ViewState.Loading -> { }
                 is ViewState.Success -> {
                     showAllViews()
                     onTransactionLoaded(uiState.transaction)
@@ -291,11 +311,11 @@ class DashboardFragment :
     private fun setUIMode(item: MenuItem, isChecked: Boolean) {
         if (isChecked) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-            viewModel.saveToDataStore(true)
+            viewModel.saveUiModeToDataStore(true)
             item.setIcon(R.drawable.ic_night)
         } else {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-            viewModel.saveToDataStore(false)
+            viewModel.saveUiModeToDataStore(false)
             item.setIcon(R.drawable.ic_day)
         }
     }

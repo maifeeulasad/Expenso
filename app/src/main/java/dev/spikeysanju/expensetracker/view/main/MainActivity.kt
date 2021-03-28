@@ -1,11 +1,8 @@
 package dev.spikeysanju.expensetracker.view.main
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.biometric.BiometricPrompt
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
@@ -20,17 +17,11 @@ import dev.spikeysanju.expensetracker.utils.viewModelFactory
 import dev.spikeysanju.expensetracker.view.main.viewmodel.TransactionViewModel
 import dev.spikeysanju.expensetracker.view.settings.SettingsViewModel
 import kotlinx.coroutines.flow.first
-import java.util.concurrent.Executor
-import kotlin.system.exitProcess
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     private lateinit var navHostFragment: NavHostFragment
     private lateinit var appBarConfiguration: AppBarConfiguration
-
-    private lateinit var executor: Executor
-    private lateinit var biometricPrompt: BiometricPrompt
-    private lateinit var promptInfo: BiometricPrompt.PromptInfo
 
     private val repo by lazy { TransactionRepo(AppDatabase(this)) }
     private val viewModel: TransactionViewModel by viewModels {
@@ -52,13 +43,9 @@ class MainActivity : AppCompatActivity() {
          */
         viewModel
 
-        lifecycleScope.launchWhenStarted {
-            if(settingsViewModel.bioMetricPreference.first())
-                authenticate()
-        }
-
         initViews(binding)
         observeNavElements(binding, navHostFragment.navController)
+        checkAndSendToAuthentication()
     }
 
     private fun observeNavElements(
@@ -101,37 +88,17 @@ class MainActivity : AppCompatActivity() {
         return super.onSupportNavigateUp()
     }
 
-    private fun authenticate(){
-        executor = ContextCompat.getMainExecutor(this)
-        biometricPrompt = BiometricPrompt(this, executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(
-                    result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    Toast.makeText(applicationContext,
-                        "Welcome to Expenso", Toast.LENGTH_LONG)
-                        .show()
-                }
+    private fun checkAndSendToAuthentication(){
+        lifecycleScope.launchWhenStarted {
+            if(settingsViewModel.bioMetricPreference.first()){
+                navHostFragment.navController.navigate(R.id.action_dashboardFragment_to_authFragment)
+            }
+        }
+    }
 
-                override fun onAuthenticationFailed() {
-                    super.onAuthenticationFailed()
-                    //todo: show message wait for a second; static err code
-                    exitProcess(-1)
-                }
-
-                override fun onAuthenticationError(errorCode: Int,
-                                                   errString: CharSequence) {
-                    super.onAuthenticationError(errorCode, errString)
-                    //todo: show message wait for a second; static err code
-                    exitProcess(-2)
-                }
-            })
-
-        promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Please complete bio-metric login to continue")
-            .setNegativeButtonText("Exit")
-            .build()
-        biometricPrompt.authenticate(promptInfo)
+    override fun onDestroy() {
+        super.onDestroy()
+        viewModel.saveAuthStatusToDataStore(false)
     }
 
 }

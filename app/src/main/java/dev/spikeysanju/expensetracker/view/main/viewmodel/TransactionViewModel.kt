@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.spikeysanju.expensetracker.data.local.datastore.AuthDataStore
 import dev.spikeysanju.expensetracker.data.local.datastore.UIModeDataStore
 import dev.spikeysanju.expensetracker.model.Transaction
 import dev.spikeysanju.expensetracker.repo.TransactionRepo
@@ -36,14 +37,24 @@ class TransactionViewModel @Inject constructor(
 
     // init datastore
     private val uiModeDataStore = UIModeDataStore(application)
+    private val authDataStore = AuthDataStore(application)
 
     // get ui mode
     val getUIMode = uiModeDataStore.uiMode
+    // get authentication status
+    val getAuthStatus = authDataStore.authenticated
 
     // save ui mode
-    fun saveToDataStore(isNightMode: Boolean) {
+    fun saveUiModeToDataStore(isNightMode: Boolean) {
         viewModelScope.launch(IO) {
             uiModeDataStore.saveToDataStore(isNightMode)
+        }
+    }
+
+    // save authentication status
+    fun saveAuthStatusToDataStore(authenticated: Boolean) {
+        viewModelScope.launch(IO) {
+            authDataStore.saveToDataStore(authenticated)
         }
     }
 
